@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-ip-api-2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: log-ip-api-2
+  template:
+    metadata:
+      labels:
+        app: log-ip-api-2
+    spec:
+      containers:
+        - name: log-ip-api-2
+          image: log-ip-api-2:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              value: "mysql+pymysql://root:mysql123@mysql-service:3306/logdb"
