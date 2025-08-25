@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-log-ip
+  namespace: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flask-log-ip
+  template:
+    metadata:
+      labels:
+        app: flask-log-ip
+    spec:
+      containers:
+        - name: flask-log-ip
+          image: flask-log-ip:1.0
+          imagePullPolicy: Never   # use local image
+          ports:
+            - containerPort: 5000
+          env:
+            - name: MYSQL_HOST
+              value: "172.31.82.139"   # your EC2 NodePort IP
+            - name: MYSQL_PORT
+              value: "30306"           # MySQL NodePort
+            - name: MYSQL_USER
+              value: "apiuser"
+            - name: MYSQL_PASSWORD
+              value: "apipass"
+            - name: MYSQL_DB
+              value: "webapi"

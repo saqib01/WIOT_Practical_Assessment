@@ -1,0 +1,58 @@
+3.29.136.157
+
+docker build -t log-ip-api-2:latest .
+docker push saqib/log-ip-api:latest
+
+
+curl -X POST http://10.43.52.126:80/log-ip
+curl http://<node-ip>:<node-port>/logs
+
+DATABASE_URL = "mysql+pymysql://root:mysql123@mysql-service.db.svc.cluster.local:3306/logdb"
+
+
+docker save log-ip-api-2:latest -o log-ip-api-2.tar
+cp log-ip-api-2.tar /tmp/
+sudo k3s ctr images import /tmp/log-ip-api-2.tar
+containers:
+  - name: log-ip-api
+    image: log-ip-api:latest
+    imagePullPolicy: IfNotPresent
+
+
+
+
+kubectl -n db exec -it pod/mysql-0 -- mysql -u root -p
+
+SHOW VARIABLES LIKE 'server_id';
+
+-- On primary (mysql-0)
+CREATE USER 'repl'@'%' IDENTIFIED WITH mysql_native_password BY 'replpass';
+GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%';
+FLUSH PRIVILEGES;
+SHOW MASTER STATUS\G
+
+ File: mysql-bin.000003
+         Position: 827
+
+-- On replicas (mysql-1 & mysql-2)
+STOP SLAVE;
+CHANGE MASTER TO
+  MASTER_HOST='mysql-0.mysql.db.svc.cluster.local',
+  MASTER_USER='repl',
+  MASTER_PASSWORD='replpass',
+  MASTER_LOG_FILE='mysql-bin.000003',
+  MASTER_LOG_POS=827;
+START SLAVE;
+SHOW SLAVE STATUS\G;
+
+-- insert on primary MySQL
+USE testdb;
+INSERT INTO ips(ip) VALUES('11.12.13.24');
+
+-- verify on slaves
+USE testdb;
+SELECT * FROM ips;
+
+-- cleaning pvc
+kubectl -n db delete pvc -l app=mysql
+kubectl -n db delete pod -l app=mysql

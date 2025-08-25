@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: db
+spec:
+  serviceName: "mysql"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: root-password
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+          command:
+            - "sh"
+            - "-c"
+            - |
+              # Convert pod name to number for unique server-id
+              POD_NUM=$(echo ${HOSTNAME##*-})
+              SERVER_ID=$((POD_NUM + 1))
+              echo "Starting MySQL with server-id=$SERVER_ID"
+              exec docker-entrypoint.sh mysqld \
+                   --server-id=$SERVER_ID \
+                   --log-bin=mysql-bin \
+                   --binlog-format=row
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
